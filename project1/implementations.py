@@ -32,8 +32,8 @@ def split_data(x, y, ratio, seed=1):
     np.random.seed(seed)
     # split the data based on the given ratio: TODO
     test_idxs = np.random.choice(range(length), (int(length*(1-ratio)),),replace=False)
-    x_tr, x_te = np.delete(x, test_idxs,0), x[test_idxs]
-    y_tr, y_te = np.delete(y, test_idxs,0), y[test_idxs]
+    x_tr, x_te = np.delete(x, test_idxs, 0), x[test_idxs]
+    y_tr, y_te = np.delete(y, test_idxs, 0), y[test_idxs]
     return x_tr, x_te, y_tr, y_te
 
 def calculate_accuracy(x, y, w):
@@ -42,7 +42,7 @@ def calculate_accuracy(x, y, w):
     return % accuracy """
     predictions = predict_labels(x, w)
     hits = np.sum(predictions == y)/len(y)*100
-    print(predictions == y)
+
     return hits
 
 
@@ -92,7 +92,7 @@ def compute_loss_MAE(y, tx, w):
     # or y - tx.dot(w)
 
     return MAE(error)
-    
+
 def grid_search(y, tx, w0, w1):
      """Algorithm for grid search."""
      losses = np.zeros((len(w0), len(w1)))
