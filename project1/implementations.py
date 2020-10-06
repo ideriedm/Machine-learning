@@ -7,6 +7,7 @@ Ceci est un script temporaire.
 
 import matplotlib.pyplot as plt
 import numpy as np
+from proj1_helpers import predict_labels
 
 def standardize(x):
     """Standardize the original data set."""
@@ -15,6 +16,35 @@ def standardize(x):
     std_x = np.std(x, axis = 0)
     x = x / std_x
     return x, mean_x, std_x
+
+def split_data(x, y, ratio, seed=1):
+    """
+    split the dataset based on the split ratio. If ratio is 0.8
+    you will have 80% of your data set dedicated to training
+    and the rest dedicated to testing
+    """
+    if len(x) != len(y):
+        raise Exception('The length of x and y are not the same')
+    else :
+        length = len(x)
+
+    # set seed
+    np.random.seed(seed)
+    # split the data based on the given ratio: TODO
+    test_idxs = np.random.choice(range(length), (int(length*(1-ratio)),),replace=False)
+    x_tr, x_te = np.delete(x, test_idxs,0), x[test_idxs]
+    y_tr, y_te = np.delete(y, test_idxs,0), y[test_idxs]
+    return x_tr, x_te, y_tr, y_te
+
+def calculate_accuracy(x, y, w):
+    """ Calculate the accuracy of the prediction
+    Xw compared to the labels y
+    return % accuracy """
+    predictions = predict_labels(x, w)
+    hits = np.sum(predictions == y)/len(y)*100
+    print(predictions == y)
+    return hits
+
 
 def MAE(error):
     """Calculate the MAE of the error vector"""
@@ -62,19 +92,17 @@ def compute_loss_MAE(y, tx, w):
     # or y - tx.dot(w)
 
     return MAE(error)
-
-
-
-def grid_search(y, tx, w0, w1):
-    """Algorithm for grid search."""
-    losses = np.zeros((len(w0), len(w1)))
-   #compute loss for each combination of w0 and w1.
-    for i in range(w0.shape[0]):
-        for j in range(w1.shape[0]):
-            w = np.array([w0[i],w1[j]])
-            losses[i,j] = compute_loss(y,tx,w)
     
-    return losses
+def grid_search(y, tx, w0, w1):
+     """Algorithm for grid search."""
+     losses = np.zeros((len(w0), len(w1)))
+    #compute loss for each combination of w0 and w1.
+     for i in range(w0.shape[0]):
+         for j in range(w1.shape[0]):
+             w = np.array([w0[i],w1[j]])
+             losses[i,j] = compute_loss(y,tx,w)
+
+     return losses
 
 
 def least_squares_GD(y, tx, initial_w, max_iters, gamma):
