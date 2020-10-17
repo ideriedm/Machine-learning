@@ -197,6 +197,44 @@ def ridge_regression(y, tx, lambda_):
 
     return optimal_w, mse
 
+
+def sigmoid(t):
+    """apply the sigmoid function on t."""
+    t = np.exp(t)/(1 + np.exp(t))
+    
+    return t
+
+
+def calculate_loss(y, tx, w):
+    """compute the loss: negative log likelihood."""
+    y = np.squeeze(y)
+    A = tx.dot(w)
+    loss = -np.sum(y.dot(np.log(sigmoid(A)))+(1-y).dot(np.log(1-sigmoid(A))))
+    
+    return loss
+
+
+def calculate_gradient(y, tx, w):
+    """compute the gradient of loss."""
+    A = tx.dot(w)
+    loss_gradient = tx.T.dot(sigmoid(A)-y)
+    
+    return loss_gradient
+
+
+def learning_by_gradient_descent(y, tx, w, gamma):
+    """
+    Do one step of gradient descent using logistic regression.
+    Return the loss and the updated w.
+    """
+    loss = calculate_loss(y, tx, w)
+    loss_gradient = calculate_gradient(y, tx, w)
+    w = w - gamma*loss_gradient
+    
+    return loss, w
+
+
+
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
     """Logistic regression using gradient descent or SGD
         Should return : (w,loss)
