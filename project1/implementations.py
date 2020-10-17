@@ -81,6 +81,24 @@ def compute_mae(y, tx, w):
     # or y - tx.dot(w)
     return np.mean(np.abs(error))
 
+def sigmoid(t):
+    """apply the sigmoid function on t."""
+
+    # same as 1 / (1 + np.exp(-t))
+    return np.exp(t)/(1 + np.exp(t))
+
+def calculate_loss_LR(y, tx, w):
+    """compute the loss: negative log likelihood."""
+
+    sigma = sigmoid(tx @ w)
+    loss = y.T @ np.log(sigma) + (1 - y).T @ np.log(1 - sigma)
+    return - loss
+
+def calculate_gradient_LR(y, tx, w):
+    """compute the gradient of loss."""
+
+    return tx.T @ (sigmoid(tx @ w) - y)
+
 def grid_search(y, tx, w0, w1):
      """Algorithm for grid search."""
      losses = np.zeros((len(w0), len(w1)))
@@ -91,7 +109,6 @@ def grid_search(y, tx, w0, w1):
              losses[i,j] = compute_loss(y,tx,w)
 
      return losses
-
 
 def least_squares_GD(y, tx, initial_w, max_iters, gamma):
 
@@ -181,8 +198,6 @@ def least_squares(y, tx):
 
     return optimal_w, mse
 
-
-
 def ridge_regression(y, tx, lambda_):
     """Ridge regression using normal equations
         Should return : (w,loss)
@@ -197,67 +212,83 @@ def ridge_regression(y, tx, lambda_):
 
     return optimal_w, mse
 
-
-def sigmoid(t):
-    """apply the sigmoid function on t."""
-    t = np.exp(t)/(1 + np.exp(t))
-    
-    return t
-
-
-def calculate_loss(y, tx, w):
-    """compute the loss: negative log likelihood."""
-    y = np.squeeze(y)
-    A = tx.dot(w)
-    loss = -np.sum(y.dot(np.log(sigmoid(A)))+(1-y).dot(np.log(1-sigmoid(A))))
-    
-    return loss
-
-
-def calculate_gradient(y, tx, w):
-    """compute the gradient of loss."""
-    A = tx.dot(w)
-    loss_gradient = tx.T.dot(sigmoid(A)-y)
-    
-    return loss_gradient
-
-
-def learning_by_gradient_descent(y, tx, w, gamma):
+def LR_GD_one_step(y, tx, w, gamma):
     """
     Do one step of gradient descent using logistic regression.
     Return the loss and the updated w.
     """
-    loss = calculate_loss(y, tx, w)
-    loss_gradient = calculate_gradient(y, tx, w)
-    w = w - gamma*loss_gradient
-    
-    return loss, w
 
+    # compute the loss:
+    loss = calculate_loss_LR(y, tx, w)
 
+    # compute the gradient:
+    grad = calculate_gradient_LR(y, tx, w)
+
+    # update w:
+    w = w - gamma * grad
+
+    return w, loss
 
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
-    """Logistic regression using gradient descent or SGD
+    """ Logistic regression using gradient descent or SGD
         Should return : (w,loss)
         [last w vector + corresponding loss]
     """
-    # ***************************************************
-    # INSERT YOUR CODE HERE
-    # TODO: Logistic regression using gradient descent or SGD
-    # ***************************************************
+    w = initial_w
+    threshold = 1e-8
+    losses = []
 
-    raise NotImplementedError
+    # start the logistic regression
+    for iter in range(max_iters):
+        # get loss and update w.
+        w, loss = LR_GD_one_step(y, tx, w, gamma)
+        # log info
+        if iter % 100 == 0:
+            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+
+    return w, loss
+
+def reg_LR_GD_one_step(y, tx, w, gamma, lambda_):
+    """
+    Do one step of gradient descent, using the penalized logistic regression.
+    Return the loss and updated w.
+    """
+    loss = calculate_loss_LR(y, tx, w)
+    grad = calculate_gradient_LR(y, tx, w)
+
+    loss = loss + lambda_ / 2 * np.linalg.norm(w)**2
+    grad = grad + lambda_ * w
+
+    # update w: 2nd order Taylor approx.
+    w = w - gamma * grad
+    return w, loss
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    """Regularized logistic regression using gradient descent or SGD
+    """ Regularized logistic regression using gradient descent or SGD
         Should return : (w,loss)
         [last w vector + corresponding loss]
     """
-    # ***************************************************
-    # INSERT YOUR CODE HERE
-    # TODO: Regularized logistic regression using gradient descent or SGD
-    # ***************************************************
+    w = initial_w
+    threshold = 1e-8
+    losses = []
 
-    raise NotImplementedError
+    # start the logistic regression
+    for iter in range(max_iters):
+        # get loss and update w.
+        w, loss = reg_LR_GD_one_step(y, tx, w, gamma, lambda_)
+        # log info
+        if iter % 100 == 0:
+            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+
+    return w, loss
 
 def build_poly(x, degree):
     """polynomial basis functions for input data x, for j=0 up to j=degree."""
