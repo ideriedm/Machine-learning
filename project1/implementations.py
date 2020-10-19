@@ -201,22 +201,6 @@ def ridge_regression(y, tx, lambda_):
 
     return optimal_w, mse
 
-def LR_GD_one_step(y, tx, w, gamma):
-    """ Do one step of gradient descent using logistic regression.
-        Returns : loss and the updated w.
-    """
-
-    # compute the loss:
-    loss = calculate_loss_LR(y, tx, w)
-
-    # compute the gradient:
-    grad = calculate_gradient_LR(y, tx, w)
-
-    # update w:
-    w = w - gamma * grad
-
-    return w, loss
-
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
     """ Logistic regression using gradient descent
         Should return : (last w vector, its corresponding loss)
@@ -227,10 +211,20 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
     threshold = 1e-8
     losses = []
 
+    # From (-1,1) values to (0,1) values
+    y = (y + 1)/2
+
     # start the logistic regression
     for iter in range(max_iters):
-        # get loss and update w.
-        w, loss = LR_GD_one_step(y, tx, w, gamma)
+        # compute the loss:
+        loss = calculate_loss_LR(y, tx, w)
+
+        # compute the gradient:
+        grad = calculate_gradient_LR(y, tx, w)
+
+        # update w:
+        w = w - gamma * grad
+
         # log info
         if iter % 100 == 0:
             print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
@@ -240,22 +234,6 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
 
-    return w, loss
-
-def reg_LR_GD_one_step(y, tx, w, gamma, lambda_):
-    """ Do one step of gradient descent (GD), using the penalized logistic regression.
-        Returns updated w and the loss.
-    """
-
-    loss = calculate_loss_LR(y, tx, w)
-    grad = calculate_gradient_LR(y, tx, w)
-
-    loss = loss + lambda_ / 2 * w.T @ w
-    # 2nd order Taylor approx.
-    grad = grad + lambda_ * w
-
-    # update w:
-    w = w - gamma * grad
     return w, loss
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
@@ -268,11 +246,22 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     threshold = 1e-8
     losses = []
 
+    # From (-1,1) values to (0,1) values
+    y = (y + 1)/2
+
     # start the logistic regression
     for iter in range(max_iters):
 
-        # get loss and update w.
-        w, loss = reg_LR_GD_one_step(y, tx, w, gamma, lambda_)
+        loss = calculate_loss_LR(y, tx, w)
+        grad = calculate_gradient_LR(y, tx, w)
+
+        loss = loss + lambda_ / 2 * w.T @ w
+        # 2nd order Taylor approx.
+        grad = grad + lambda_ * w
+
+        # update w:
+        w = w - gamma * grad
+
         # log info
         if iter % 100 == 0:
             print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
@@ -353,6 +342,13 @@ def cross_validation(y, x, k_indices, k, param, degree):
         lambda_ = param["param"]
         # ridge regression:
         optimal_w, mse = ridge_regression(y_tr, x_tr_p, lambda_)
+
+    elif param["model"] == "LR":
+        initial_w = param["initial_w"]
+        max_iters = param["param"][1]
+        gamma = param["param"][0]
+        # logistic regression :
+        optimal_w, mse = logistic_regression(y, x_tr_p, initial_w, max_iters, gamma)
 
     accuracy = compute_accuracy(x_te_p, y_te, optimal_w)
     # calculate the loss for train and test data:
