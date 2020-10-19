@@ -10,7 +10,8 @@ from proj1_helpers import predict_labels
 
 
 def standardize(x):
-    """Standardize the original data set."""
+    """ Standardize the original data set = removing the mean
+        & divide by the standard deviation """
     mean_x = np.mean(x, axis = 0)
     x = x - mean_x
     std_x = np.std(x, axis = 0)
@@ -18,21 +19,22 @@ def standardize(x):
     return x, mean_x, std_x
 
 def split_data(x, y, ratio, seed=1):
+    """ Split the dataset based on the split ratio.
+        If ratio is 0.8 :
+        80% of the data set -> training
+        20% -> testing
     """
-    split the dataset based on the split ratio. If ratio is 0.8
-    you will have 80% of your data set dedicated to training
-    and the rest dedicated to testing
-    """
+
     if x.shape[0] != y.shape[0]:
-        raise Exception('The length of x and y are not the same')
+        raise Exception('The lengths of x and y are not the same')
     else :
         length = x.shape[0]
 
-    # set seed
+    # Set seed
     np.random.seed(seed)
-    # number of training indices
-    sep = int(np.floor(length*ratio))
-    # shuffle the indices
+    # Number of training indices
+    sep = int(np.floor(length * ratio))
+    # Shuffle the indices
     shuffled_idx = np.random.permutation(length)
     tr_idx = shuffled_idx[:sep]
     te_idx = shuffled_idx[sep:]
@@ -43,93 +45,89 @@ def split_data(x, y, ratio, seed=1):
 
 def compute_accuracy(x, y, w):
     """ Calculate the accuracy of the prediction
-    Xw compared to the labels y
-    return % accuracy """
+        Xw compared to the known labels y
+        return % accuracy """
+
     predictions = predict_labels(x.T, w)
-    hits = np.sum(predictions == y)/len(y)*100
+    # Counts all the correct predictions
+    hits = np.sum(predictions == y) / len(y) * 100
 
     return hits
-
 
 def compute_gradient(y, tx, w):
     """Compute the gradient."""
 
-    # compute gradient and error vector
+    # Compute the error vector
     # For MSE, ▽L = -1/N*X_T*e
     error = y - np.dot(tx,w)
 
-    # tx.T = tx.transpose()
-    return -np.dot(tx.T,error)/len(y)
+    return -tx.T @ error/len(y)
 
 def compute_mse(y, tx, w):
-    """Calculate the loss.
-
-    You can calculate the loss using mse or mae.
+    """ Calculate the mean squared error (MSE) loss.
     """
-    error = y - np.dot(tx,w)
-    # or y - tx @ w
-    # or y - tx.dot(w)
-    return 1/2*np.mean(error**2)
+    error = y - tx @ w
+
+    return 1/2 * np.mean(error**2)
 
 def compute_mae(y, tx, w):
-    """Calculate the loss.
-
-    You can calculate the loss using mse or mae.
+    """ Calculate the mean absolute error (MAE) loss.
     """
-    error = y - np.dot(tx,w)
-    # or y - tx @ w
-    # or y - tx.dot(w)
+    error = y - tx @ w
+
     return np.mean(np.abs(error))
 
 def sigmoid(t):
-    """apply the sigmoid function on t."""
+    """ Apply the sigmoid function on t."""
 
     # same as 1 / (1 + np.exp(-t))
     return np.exp(t)/(1 + np.exp(t))
 
 def calculate_loss_LR(y, tx, w):
-    """compute the loss: negative log likelihood."""
+    """ Compute the loss as the negative log likelihood
+        in the case of the logistic regression (LR) """
 
     sigma = sigmoid(tx @ w)
     loss = y.T @ np.log(sigma) + (1 - y).T @ np.log(1 - sigma)
-    return - loss
+
+    return -loss
 
 def calculate_gradient_LR(y, tx, w):
-    """compute the gradient of loss."""
+    """ Compute the gradient of loss
+        in the case of the logistic regression (LR)"""
 
     return tx.T @ (sigmoid(tx @ w) - y)
 
-def grid_search(y, tx, w0, w1):
-     """Algorithm for grid search."""
-     losses = np.zeros((len(w0), len(w1)))
-    #compute loss for each combination of w0 and w1.
-     for i in range(w0.shape[0]):
-         for j in range(w1.shape[0]):
-             w = np.array([w0[i],w1[j]])
-             losses[i,j] = compute_loss(y,tx,w)
-
-     return losses
-
 def least_squares_GD(y, tx, initial_w, max_iters, gamma):
 
-    """Linear regression using gradient descent
-        Should return : (w,loss)
-        [last w vector + corresponding loss]
+    """ Linear regression using gradient descent (GD)
+        Returns : (last model w, its corresponding loss)
     """
 
-    # Define parameters to store w and loss
+    # Threshold for the stopping criterion
+    threshold = 1e-8
+
     w = initial_w
+    last_loss = None
+
     for n_iter in range(max_iters):
-        # compute gradient and loss
+
+        # compute gradient
         gradient = compute_gradient(y, tx, w)
-        loss = compute_mse(y, tx, w)
-        # or loss = MAE(error)
 
         # update w by gradient
         w = w - gamma * gradient
 
+        loss = compute_mse(y, tx, w)
+
         # print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
         #       bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
+
+        # Stopping criterion
+        if last_loss is not None and np.abs(loss - last_loss) < threshold:
+            break
+
+        last_loss = loss
 
     return w, loss
 
@@ -158,19 +156,11 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         if start_index != end_index:
             yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
 
-def compute_stoch_gradient(y, tx, w):
-    """Compute a stochastic gradient from just few examples n and their corresponding y_n labels."""
-    # It's same as the gradient descent.
-
-    return compute_gradient(y, tx, w)
-
-def least_squares_SGD(y, tx, initial_w, max_iters, gamma):
-    """Linear regression using stochastic gradient descent
-        Should return : (w,loss)
-        [last w vector + corresponding loss]
+def least_squares_SGD(y, tx, initial_w, max_iters, batch_size, gamma):
+    """ Linear regression using stochastic gradient descent (SGD)
+        Returns : (last w vector, its corresponding loss)
     """
 
-    # Define parameter w
     w = initial_w
 
     for n_iter in range(max_iters):
@@ -184,27 +174,26 @@ def least_squares_SGD(y, tx, initial_w, max_iters, gamma):
             # print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
             #       bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
 
-    return w, loss
+    return w, compute_mse(y, tx, w)
 
 def least_squares(y, tx):
-    """calculate the least squares solution.
-        Least squares regression using normal equations
-        Should return : (w,loss)
-        [last w vector + corresponding loss]
+    """ Calculate the least squares solution using normal equations
+        Returns : (last w vector, its corresponding loss)
     """
 
+    # Closed-form solution of the normal equation
     optimal_w = np.linalg.solve(tx.T @ tx, tx.T @ y)
     mse = compute_mse(y, tx, optimal_w)
 
     return optimal_w, mse
 
 def ridge_regression(y, tx, lambda_):
-    """Ridge regression using normal equations
-        Should return : (w,loss)
-        [last w vector + corresponding loss]
+    """ Ridge regression using normal equations
+        lambda_ : tunes the importance of the regularizer term
+        Returns : (last w vector, its corresponding loss)
     """
 
-    # ridge regression:
+    # ridge regression
     a = tx.T @ tx + lambda_ * 2 * len(y) * np.identity(tx.shape[1])
     b = tx.T @ y
     optimal_w = np.linalg.solve(a, b)
@@ -213,9 +202,8 @@ def ridge_regression(y, tx, lambda_):
     return optimal_w, mse
 
 def LR_GD_one_step(y, tx, w, gamma):
-    """
-    Do one step of gradient descent using logistic regression.
-    Return the loss and the updated w.
+    """ Do one step of gradient descent using logistic regression.
+        Returns : loss and the updated w.
     """
 
     # compute the loss:
@@ -230,11 +218,12 @@ def LR_GD_one_step(y, tx, w, gamma):
     return w, loss
 
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
-    """ Logistic regression using gradient descent or SGD
-        Should return : (w,loss)
-        [last w vector + corresponding loss]
+    """ Logistic regression using gradient descent
+        Should return : (last w vector, its corresponding loss)
     """
+
     w = initial_w
+    # Threshold for stopping criterion
     threshold = 1e-8
     losses = []
 
@@ -245,68 +234,83 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         # log info
         if iter % 100 == 0:
             print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
-        # converge criterion
         losses.append(loss)
+
+        # Stopping criterion
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
 
     return w, loss
 
 def reg_LR_GD_one_step(y, tx, w, gamma, lambda_):
+    """ Do one step of gradient descent (GD), using the penalized logistic regression.
+        Returns updated w and the loss.
     """
-    Do one step of gradient descent, using the penalized logistic regression.
-    Return the loss and updated w.
-    """
+
     loss = calculate_loss_LR(y, tx, w)
     grad = calculate_gradient_LR(y, tx, w)
 
-    loss = loss + lambda_ / 2 * np.linalg.norm(w)**2
+    loss = loss + lambda_ / 2 * w.T @ w
+    # 2nd order Taylor approx.
     grad = grad + lambda_ * w
 
-    # update w: 2nd order Taylor approx.
+    # update w:
     w = w - gamma * grad
     return w, loss
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    """ Regularized logistic regression using gradient descent or SGD
-        Should return : (w,loss)
-        [last w vector + corresponding loss]
+    """ Regularized logistic regression using gradient descent
+        Returns : (last w vector, its correspondingloss)
     """
+
     w = initial_w
+    # Threshold for the stopping criterion
     threshold = 1e-8
     losses = []
 
     # start the logistic regression
     for iter in range(max_iters):
+
         # get loss and update w.
         w, loss = reg_LR_GD_one_step(y, tx, w, gamma, lambda_)
         # log info
         if iter % 100 == 0:
             print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
-        # converge criterion
         losses.append(loss)
+
+        # Stopping criterion
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
 
     return w, loss
 
 def build_poly(x, degree):
-    """polynomial basis functions for input data x, for j=0 up to j=degree."""
-    # this function should return the matrix formed
-    # by applying the polynomial basis to the input data
+    """ Polynomial basis functions for input data x, for j=0 up to j=degree.
+        This function should return the matrix formed
+        by applying the polynomial basis to the input data
+        Returns x_augmented = [x**0 x**1 x**2 ... x**degree]
+    """
 
-    # if the data has only 1 feature => features = 1
+    degree_int = int(degree)
+    if degree != degree_int:
+        raise Exception("Degree must be integer")
+
+    # If the data has only 1 feature => features = 1
     features = 1 if len(x.shape) == 1 else x.shape[1]
     x = x.reshape(((x.shape[0], features)))
-    x_augmented = np.ones((x.shape[0], int(features*degree + 1)))
-    for d in range(degree):
-        start = int(d*features+1)
-        stop = int((d+1)*features+1)
-        x_augmented[:,start : stop] = x**(d+1)
+
+    # Pre-assign the x_augmented to optimize time
+    x_augmented = np.ones((x.shape[0], features * degree_int + 1))
+    for d in range(degree_int):
+
+        start = d * features + 1
+        stop = (d + 1) * features + 1
+        x_augmented[ : , start : stop] = x**(d + 1)
+
     return x_augmented
 
 def build_k_indices(y, k_fold, seed):
-    """build k indices for k-fold."""
+    """ Build k indices for k-fold."""
     num_row = y.shape[0]
     interval = int(num_row / k_fold)
     np.random.seed(seed)
@@ -331,15 +335,16 @@ def cross_validation(y, x, k_indices, k, param, degree):
 
     if param["model"] == "GD":
         initial_w = param["initial_w"]
-        max_iters = param["param"]
-        gamma = 0.3
+        max_iters = param["param"][1]
+        gamma = param["param"][0]
         optimal_w, mse = least_squares_GD(y_tr, x_tr_p, initial_w, max_iters, gamma)
 
     elif param["model"] == "SGD":
         initial_w = param["initial_w"]
-        max_iters = param["param"]
-        gamma = 0.3
-        optimal_w, mse = least_squares_SGD(y_tr, x_tr_p, initial_w, max_iters, gamma)
+        max_iters = param["param"][1]
+        batch_size = param["param"][2]
+        gamma = param["param"][0]
+        optimal_w, mse = least_squares_SGD(y_tr, x_tr_p, initial_w, max_iters, batch_size, gamma)
 
     elif param["model"] == "LS":
         optimal_w, mse =least_squares(y_tr, x_tr_p)
