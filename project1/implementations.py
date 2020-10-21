@@ -8,6 +8,72 @@ import matplotlib.pyplot as plt
 import numpy as np
 from proj1_helpers import predict_labels
 
+def categorizing(x):
+    categories = {0: x[:, 22] == 0,1: x[:, 22] == 1,2: x[:, 22] == 2,3: x[:, 22] == 3}
+    return categories
+
+def remove_aberrant_features(x) :
+
+    tX = np.copy(x)
+    # remove the categorical feature : Pri_jet_num
+    tX = np.delete(tX, 22, 1)
+    # Remove the data entries with only 0 values for all features
+    #tx = tX[~np.all(tX == 0, axis = 1)]
+    # Remove the features with only -999.0 values for all entries
+    tX = tX[:,~np.all(tX == -999.0, axis = 0)]
+    # Remove the features with only 0 values for all entries
+    return tX[:,~np.all(tX == 0, axis = 0)]
+
+def remove_aberrant_values(x):
+    '''The undefined variables are set to -999.0.
+    For each feature, this function will replace those values
+    by the mean of the feature'''
+
+    tX = np.copy(x)
+    nb_features = tX.shape[1]
+    means = np.empty(nb_features)
+
+    # Go through each feature of x (D dimensions)
+    for i in range(nb_features):
+        # Calculate the mean without the abberant values
+        feature_mean = tX[ tX[:,i] != -999.0, i].mean()
+        nb_outliers = np.sum(tX[:,i] == -999.0)
+        # Replace the abberant values by the mean of the feature
+        tX[ tX[:,i] == -999.0, i] = feature_mean * np.ones(nb_outliers)
+    return tX
+
+def remove_outliers(x):
+    
+    tX = np.copy(x)
+    nb_features = tX.shape[1]
+    nb_rows = tX.shape[0]
+    means = np.mean(x, axis=0)
+    variances = np.std(x, axis=0)
+    
+    # Go through each feature of x (D dimensions)
+    for i in range(nb_features):
+        # Calculate the mean without the outliers
+        outliers = tX[np.logical_or(tX[:,i] <= (means[i] - 3*variances[i]),tX[:,i] >= (means[i] + 3*variances[i])),i]
+        sum_outliers = np.sum(np.logical_or(tX[:,i] <= (means[i] - 3*variances[i]),tX[:,i] >= (means[i] + 3*variances[i])))
+        # Replace the outliers by the mean of the feature
+        outliers = means[i] * np.ones(sum_outliers)
+    return tX
+
+def remove_correlation(x, par):
+ 
+    tX = np.copy(x)
+    nb_features = tX.shape[1]
+    nb_rows = tX.shape[0]
+    correlation = np.corrcoef(x, y=None, rowvar=False)
+    
+    # Go through each feature of x (D dimensions)
+    for i in range(nb_features):
+        # Find the correlating features
+        for j in range(i):
+            if correlation[i,j] >= par:
+            # Delete the highly correlating feature
+                tX = np.delete(tX,j,1)
+    return tX
 
 def standardize(x):
     """ Standardize the original data set = removing the mean
@@ -357,31 +423,31 @@ def cross_validation(y, x, k_indices, k, param, degree):
 
     return loss_tr, loss_te, optimal_w, accuracy
 
-def remove_undefined_variable(x):
-    '''The undefined variables are set to -999.0.
-    For each feature, this function will replace those values
-    by the mean of the feature'''
+#def remove_undefined_variable(x):
+    #'''The undefined variables are set to -999.0.
+    #For each feature, this function will replace those values
+    #by the mean of the feature'''
 
-    tX = np.copy(x)
-    nb_features = tX.shape[1]
-    means = np.empty(nb_features)
+    #tX = np.copy(x)
+    #nb_features = tX.shape[1]
+    #means = np.empty(nb_features)
 
     # Go through each feature of x (D dimensions)
-    for i in range(nb_features):
+    #for i in range(nb_features):
         # Calculate the mean without the outliers
-        feature_mean = tX[ tX[:,i] != -999.0, i].mean()
-        nb_outliers = np.sum(tX[:,i] == -999.0)
+        #feature_mean = tX[ tX[:,i] != -999.0, i].mean()
+        #nb_outliers = np.sum(tX[:,i] == -999.0)
         # Replace the outliers by the mean of the feature
-        tX[ tX[:,i] == -999.0, i] = feature_mean * np.ones(nb_outliers)
+        #tX[ tX[:,i] == -999.0, i] = feature_mean * np.ones(nb_outliers)
 
-    return tX
+    #return tX
 
-def remove_aberrant_features(x) :
+#def remove_aberrant_features(x) :
 
-    tX = np.copy(x)
+    #tX = np.copy(x)
     # remove the categorical feature : Pri_jet_num
-    tX = np.delete(tX, 22, 1)
+    #tX = np.delete(tX, 22, 1)
     # Remove the data entries with only 0 value for all features
-    tX = tX[~np.all(tX == 0, axis = 1)]
+    #tX = tX[~np.all(tX == 0, axis = 1)]
     # Remove the features with only 0 values for all entries
-    return tX[:,~np.all(tX == 0, axis = 0)]
+    #return tX[:,~np.all(tX == 0, axis = 0)]
