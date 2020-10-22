@@ -9,7 +9,6 @@ y_pre, tX_pre, ids = load_csv_data(DATA_TRAIN_PATH)
 DATA_TEST_PATH = '../data/test.csv'
 _, tX_test, ids_test = load_csv_data(DATA_TEST_PATH)
 
-print(type(ids))
 # Preprocessing
 tX_post = remove_aberrant_values(tX_pre)
 tX_post = remove_aberrant_features(tX_post)
