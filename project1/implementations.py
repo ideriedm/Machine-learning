@@ -11,6 +11,7 @@ from proj1_helpers import *
 ##############################################
 ## Data- preprocessing
 ##############################################
+
 def build_k_indices(y, k_fold, seed):
     """ Build k indices for k-fold."""
     num_row = y.shape[0]
@@ -130,24 +131,26 @@ def remove_aberrant_values(x):
         tX[ tX[:,i] == -999.0, i] = feature_mean * np.ones(nb_outliers)
     return tX
 
-def remove_outliers(x):
-    """ Replaces the outliers that are outside the interval by the mean :
-        mean(x:d) +/- 3 * std(x:d)
+def rescale_outliers(x):
+    """ Replaces the outliers that are outside the interval :
+        mean(x:d) +/- 3 * std(x:d) by the bound values of the interval
     """
 
     tX = np.copy(x)
-    nb_features = tX.shape[1]
-    nb_rows = tX.shape[0]
-    means = np.mean(x, axis = 0)
-    variances = np.std(x, axis = 0)
+    means = np.mean(tX, axis = 0)
+    variances = np.std(tX, axis = 0)
+    lim_min = means - 3 * variances
+    lim_max = means + 3 * variances
 
     # Go through each feature of x (D dimensions)
-    for i in range(nb_features):
-        # Calculate the mean without the outliers
-        outliers = tX[np.logical_or(tX[:,i] <= (means[i] - 3*variances[i]),tX[:,i] >= (means[i] + 3*variances[i])),i]
-        sum_outliers = np.sum(np.logical_or(tX[:,i] <= (means[i] - 3*variances[i]),tX[:,i] >= (means[i] + 3*variances[i])))
-        # Replace the outliers by the mean of the feature
-        outliers = means[i] * np.ones(sum_outliers)
+    for d in range(tX.shape[1]):
+        # If some entries in the feature d are smaller than lim_min,
+        # they are replaced by the lim_min
+        # Otherwise, they stay the same
+        tX[:, d] = np.where(tX[:, d] < lim_min[d], lim_min[d], tX[:, d])
+        # Same for lim_max
+        tX[:, d] = np.where(tX[:, d] > lim_max[d], lim_max[d], tX[:, d])
+
     return tX
 
 def remove_correlation(x, par):
@@ -249,7 +252,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         start_index = batch_num * batch_size
         end_index = min((batch_num + 1) * batch_size, data_size)
         if start_index != end_index:
-            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+            yield batch_num, shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
 
 ##############################################
 ## Models
@@ -302,7 +305,7 @@ def least_squares_SGD(y, tx, initial_w, max_iters, batch_size, gamma):
     num_batches = 100
 
     for n_iter in range(int(max_iters / num_batches)):
-        for y_, tx_ in batch_iter(y, tx, batch_size=batch_size, num_batches=num_batches):
+        for i, y_, tx_ in batch_iter(y, tx, batch_size=batch_size, num_batches=num_batches):
 
             stoch_gradient = compute_gradient(y_, tx_, w)
 
@@ -313,8 +316,9 @@ def least_squares_SGD(y, tx, initial_w, max_iters, batch_size, gamma):
             # Stopping criterion
             loss = compute_mse(y, tx, w)
 
-            if last_loss is not None and np.abs(loss - last_loss) < threshold:
-                break
+            # if last_loss is not None and np.abs(loss - last_loss) < threshold:
+            #     print("Converged in : ", n_iter * num_batches + i, " iterations")
+            #     return w, loss
 
             last_loss = loss
 
@@ -459,10 +463,13 @@ def cross_validation(y, x, k_indices, k, param, degree):
     x_tr = np.delete(x, k_indices[k], 0)
     y_tr = np.delete(y, k_indices[k], 0)
 
-
-    # form data with polynomial degree:
-    x_tr_p = build_poly(x_tr, degree)
-    x_te_p = build_poly(x_te, degree)
+    if degree != 0:
+        # form data with polynomial degree:
+        x_tr_p = build_poly(x_tr, degree)
+        x_te_p = build_poly(x_te, degree)
+    else :
+        x_tr_p = x_tr
+        x_te_p = x_te
 
     if param["model"] == "GD":
         initial_w = param["initial_w"]
@@ -507,3 +514,103 @@ def cross_validation(y, x, k_indices, k, param, degree):
     loss_te = np.sqrt(2 * compute_mse(y_te, x_te_p, optimal_w))
 
     return loss_tr, loss_te, optimal_w, accuracy
+
+def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
+
+    # Split data in k fold
+    k_indices = build_k_indices(y, k_fold, seed)
+
+    print("Method = ", model["model"])
+
+    if model["model"] != 'LS':
+        if model["model"] != 'ridge':
+            list_param = model["param"][0] # gammas or lambdas
+        else :
+            list_param = model["param"]
+        # Store all the RMSEs
+        rmses_list = np.empty([degrees.size, list_param.size])
+        accuracy_list = np.empty([degrees.size, list_param.size])
+
+    else:
+
+        rmses_list = np.empty(degrees.size)
+        accuracy_list = np.empty(degrees.size)
+
+    # Vary degree
+    for i, degree in enumerate(degrees):
+
+        print("Degree = ", degree)
+        print("Progress : ", i/len(degrees)*100 , " % ")
+
+        if model["model"] != 'LS' and model["model"] != 'ridge':
+            if degree != 0:
+                model["initial_w"] = np.zeros(int(x.shape[1] * degree + 1))
+            else :
+                model["initial_w"] = np.zeros(int(x.shape[1]))
+
+        if model["model"] != 'LR':
+            if degree != 0:
+                model["initial_w"] = np.ones(int(x.shape[1] * degree + 1))/1000
+            else :
+                model["initial_w"] = np.zeros(int(x.shape[1]))
+
+        #####
+        # Not LS
+        #####
+
+        if model["model"] != 'LS':
+
+            for j, p in enumerate(list_param):
+
+                rmse_te_tmp = np.empty(k_fold)
+                accuracy_tmp = np.empty(k_fold)
+
+                if model["model"] != 'ridge':
+                    model["param"][0] = p
+                else :
+                    model["param"] = p
+
+                for k in range(k_fold):
+                    _, rmse_te, _, accuracy = cross_validation(y, x, k_indices, k, model, degree)
+                    rmse_te_tmp[k] = rmse_te
+                    accuracy_tmp[k] = accuracy
+
+                rmses_list[i,j] = np.mean(rmse_te_tmp)
+                accuracy_list[i,j] = np.mean(accuracy_tmp)
+
+        #####
+        # LS
+        #####
+
+        else :
+
+            rmse_te_tmp = np.empty(k_fold)
+            accuracy_tmp = np.empty(k_fold)
+
+            for k in range(k_fold):
+                    _, rmse_te, _, accuracy = cross_validation(y, x, k_indices, k, model, degree)
+                    rmse_te_tmp[k] = rmse_te
+                    accuracy_tmp[k] = accuracy
+
+            rmses_list[i] = np.mean(rmse_te_tmp)
+            accuracy_list[i] = np.mean(accuracy_tmp)
+
+    print("The method used is : ", model["model"])
+
+    rmses_list = np.squeeze(rmses_list)
+    accuracy_list = np.squeeze(accuracy_list)
+
+    if model["model"] == 'LS':
+        idx_best_degree = np.squeeze(np.argwhere(rmses_list == np.min(rmses_list)))
+        print("The best degree is", degrees[idx_best_degree],
+              " with RMSE = ", rmses_list[idx_best_degree],
+              "and accuracy = ", accuracy_list[idx_best_degree])
+    else:
+        idx_best_degree = np.squeeze(np.argwhere(rmses_list == np.min(rmses_list)))
+        print("The best degree is", degrees[idx_best_degree[0]],
+              " best parameter is", list_param[idx_best_degree[1]],
+              " with RMSE = ", rmses_list[idx_best_degree[0],idx_best_degree[1]],
+              "and accuracy = ", accuracy_list[idx_best_degree[0],idx_best_degree[1]])
+
+
+    return rmses_list, accuracy_list
