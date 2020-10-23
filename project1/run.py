@@ -9,20 +9,8 @@ y_pre, tX_pre, ids = load_csv_data(DATA_TRAIN_PATH)
 DATA_TEST_PATH = '../data/test.csv'
 _, tX_test, ids_test = load_csv_data(DATA_TEST_PATH)
 
-# Preprocessing
-tX_post = remove_aberrant_values(tX_pre)
-tX_post = remove_aberrant_features(tX_post)
-tX_post = rescale_outliers(tX_post)
-tX_post, _ , _ = standardize(tX_post)
-
 # Split according to categories, feature PRI_jet_num
 jet = categorizing(tX_pre)
-
-# Preprocessing
-tX_test_post = remove_aberrant_values(tX_test)
-tX_test_post = remove_aberrant_features(tX_test_post)
-tX_test_post = rescale_outliers(tX_test_post)
-tX_test_post, _ , _ = standardize(tX_test_post)
 
 # Split according to categories, feature PRI_jet_num
 jet_test = categorizing(tX_test)
@@ -43,16 +31,29 @@ for i in range(len(jet)):
       "param": lambda_,
     }
 
-    tX_jet = clear_jet(tX_post[jet[i]])
+    # Preprocessing train
+    tX_post = tX_pre[jet[i]]
+    tX_post = remove_categorical_feature(tX_post)
+    tX_post = clear_variance_0(tX_post)
+    tX_post = remove_aberrant_values(tX_post)
+    tX_post = rescale_outliers(tX_post)
+    tX_post, _ , _ = standardize(tX_post)
+
+    # Preprocessing test
+    tX_test_post = tX_test[jet_test[i]]
+    tX_test_post = remove_categorical_feature(tX_test_post)
+    tX_test_post = clear_variance_0(tX_test_post)
+    tX_test_post = remove_aberrant_values(tX_test_post)
+    tX_test_post = rescale_outliers(tX_test_post)
+    tX_test_post, _ , _ = standardize(tX_test_post)
+
     y_jet = y_pre[jet[i]]
 
-    x_tr_p = build_poly(tX_jet, degree)
+    x_tr_p = build_poly(tX_post, degree)
 
     w, _ = ridge_regression(y_jet, x_tr_p, lambda_)
 
-
-    tX = clear_jet(tX_test_post[jet_test[i]])
-    tX = build_poly(tX, degree)
+    tX = build_poly(tX_test_post, degree)
     ids_pred.append(ids_test[jet_test[i]])
     predictions.append(predict_labels(w, tX))
 

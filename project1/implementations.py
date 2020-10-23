@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Éditeur de Spyder
-
-Ceci est un script temporaire.
-"""
-import matplotlib.pyplot as plt
 import numpy as np
 from proj1_helpers import *
 
@@ -24,40 +18,63 @@ def build_k_indices(y, k_fold, seed):
 
 def build_poly(x, degree):
     """ Polynomial basis functions for input data x, for j=0 up to j=degree.
-        This function should return the matrix formed
-        by applying the polynomial basis to the input data
-        Returns : x_augmented = [x**0 x**1 x**2 ... x**degree]
+        This function should return the matrix formed by applying the polynomial
+        basis to the input data.
+        By convention, degree = 0 returns x_augmented = x
+        Arguments :
+            x : dataset
+            degree : the degree until which the function will augment the x
+        Returns :
+            x_augmented = [x**0 x**1 x**2 ... x**degree]
+            Note : x**0 corresponds to the first column filled with 1
     """
 
+    # Check that the user provide an integer
     degree_int = int(degree)
     if degree != degree_int:
         raise Exception("Degree must be integer")
 
-    # If the data has only 1 feature => features = 1
-    features = 1 if len(x.shape) == 1 else x.shape[1]
-    x = x.reshape(((x.shape[0], features)))
+    if degree != 0:
+        # If the data has only 1 feature => features = 1
+        features = 1 if len(x.shape) == 1 else x.shape[1]
+        x = x.reshape(((x.shape[0], features)))
 
-    # Pre-assign the x_augmented to optimize time
-    x_augmented = np.ones((x.shape[0], features * degree_int + 1))
-    for d in range(degree_int):
+        # Pre-assign the x_augmented to optimize time
+        x_augmented = np.empty((x.shape[0], features * degree_int + 1))
+        # The first column is filled with ones to add a bias
+        x_augmented[:, 0] = np.ones(x.shape[0])
+        for d in range(degree_int):
 
-        start = d * features + 1
-        stop = (d + 1) * features + 1
-        x_augmented[ : , start : stop] = x**(d + 1)
+            start = d * features + 1
+            stop = (d + 1) * features + 1
+            x_augmented[ : , start : stop] = x**(d + 1)
+    elif degree == 0:
+        x_augmented = x
 
     return x_augmented
 
 def categorizing(x):
     """ The feature 23 (PRI_JET_NUM) is a categorical variables that contains
         0, 1, 2 or 3.
+        Argument :
+            x : dataset
         Returns :
+            E.g. categories[0] = vector of boolean of length x.shape[0] = N.
+                 Contains TRUE if the x[:, 22] = 0
+                 x[categories[0]] returns all the x that have 0 as PRI_JET_NUM
     """
     categories = {0: x[:, 22] == 0, 1: x[:, 22] == 1, 2: x[:, 22] == 2, 3: x[:, 22] == 3}
     return categories
 
 def standardize(x):
     """ Standardize the original data set
-        Returns : standardized data set """
+        Argument :
+            x : dataset
+        Returns :
+            standardized data set
+            mean
+            standard deviation
+     """
     mean_x = np.mean(x, axis = 0)
     x = x - mean_x
     std_x = np.std(x, axis = 0)
@@ -69,7 +86,14 @@ def split_data(x, y, ratio, seed=1):
         If ratio is 0.8 :
         80% of the data set -> training
         20% -> testing
-        Returns : the splitted data
+        Argument :
+            x : dataset
+            y : known labels
+            ratio : ratio of splitting
+            seed : seed for the random seed
+        Returns :
+            x_tr, y_tr : the x and y data for Training
+            x_te, y_te : the x and y data for testing
     """
 
     if x.shape[0] != y.shape[0]:
@@ -92,63 +116,84 @@ def split_data(x, y, ratio, seed=1):
 
     return x_tr, x_te, y_tr, y_te
 
-def remove_aberrant_features(x) :
+def remove_categorical_feature(x) :
 
-    """ Removes the categorical feature 23
-        Removes columns filled with 0 or -999.0 (aberrant values)
+    """ Removes the categorical feature 23 Pri_jet_num
+        Argument :
+            x : dataset
+        Returns :
+            tX : dataset without the Pri_jet_num feature
     """
 
     tX = np.copy(x)
     # remove the categorical feature : Pri_jet_num
     tX = np.delete(tX, 22, 1)
-    # Remove the features with only -999.0 values for all entries
-    tX = tX[:,~np.all(tX == -999.0, axis = 0)]
-    # Remove the features with only 0 values for all entries
-    return tX[:,~np.all(tX == 0, axis = 0)]
 
-def clear_jet(x):
+    return tX
 
+def clear_variance_0(x):
+
+    """ Removes the features with 0 variance (columns filled with the same value)
+        Argument :
+            x : dataset
+        Returns :
+            tX : dataset without the 0-variance features
+    """
     tX = np.copy(x)
 
-    return tX[:, np.squeeze(np.argwhere(np.std(tX, axis = 0) > 1e-10)) ]
+    return tX[:, np.squeeze(np.argwhere(np.std(tX, axis = 0) > 1e-5)) ]
 
 def remove_aberrant_values(x):
     ''' The undefined variables are set to -999.0.
         For each feature, this function will replace those values
         by the mean of the feature
+        Argument :
+            x : dataset
+        Returns :
+            tX : dataset with the -999.0 replaced by the mean of the feature
     '''
 
     tX = np.copy(x)
     nb_features = tX.shape[1]
     means = np.empty(nb_features)
 
-    # Go through each feature of x (D dimensions)
+    # Iterate through each feature of x (D dimensions)
     for i in range(nb_features):
+
         # Calculate the mean without the abberant values
-        feature_mean = tX[ tX[:,i] != -999.0, i].mean()
-        nb_outliers = np.sum(tX[:,i] == -999.0)
+        feature_mean = tX[ tX[:,i] != -999.0 , i].mean()
+        # Calculate the number of abberant values
+        nb_abberant_values = np.sum(tX[:,i] == -999.0)
         # Replace the abberant values by the mean of the feature
-        tX[ tX[:,i] == -999.0, i] = feature_mean * np.ones(nb_outliers)
+        tX[ tX[:,i] == -999.0 , i] = feature_mean * np.ones(nb_abberant_values)
+
     return tX
 
 def rescale_outliers(x):
     """ Replaces the outliers that are outside the interval :
         mean(x:d) +/- 3 * std(x:d) by the bound values of the interval
+        Argument :
+            x : dataset
+        Returns :
+            tX : dataset with the points outside mean +/- 3*std replaced
+            at the extreme values of the interval
     """
 
     tX = np.copy(x)
+    # Calculate the means & the variances of all the features
     means = np.mean(tX, axis = 0)
     variances = np.std(tX, axis = 0)
+    # Calculate the minimal and the maximal limit of the confidence interval
     lim_min = means - 3 * variances
     lim_max = means + 3 * variances
 
-    # Go through each feature of x (D dimensions)
+    # Iterate through each feature of x (D dimensions)
     for d in range(tX.shape[1]):
         # If some entries in the feature d are smaller than lim_min,
-        # they are replaced by the lim_min
+        # They are replaced by the lim_min
         # Otherwise, they stay the same
         tX[:, d] = np.where(tX[:, d] < lim_min[d], lim_min[d], tX[:, d])
-        # Same for lim_max
+        # Same for lim_max, if the values exceed the maximal limit
         tX[:, d] = np.where(tX[:, d] > lim_max[d], lim_max[d], tX[:, d])
 
     return tX
@@ -156,6 +201,11 @@ def rescale_outliers(x):
 def remove_correlation(x, par):
     """ Removes the highly correlated features,
         i.e. if the correlation between column i & j >= param
+        Argument :
+            x : dataset
+            par : the highest correlation tolerated.
+        Returns :
+            tX : dataset without the highly correlated features
     """
 
     tX = np.copy(x)
@@ -168,8 +218,8 @@ def remove_correlation(x, par):
         # Find the correlating features
         for j in range(i):
             if correlation[i,j] >= par:
-            # Delete the highly correlating feature
-                tX = np.delete(tX,j,1)
+                # Delete the highly correlating feature
+                tX = np.delete(tX, j, 1)
     return tX
 
 ##############################################
@@ -178,6 +228,12 @@ def remove_correlation(x, par):
 
 def compute_mse(y, tx, w):
     """ Calculate the mean squared error (MSE) loss.
+        Argument :
+            x : dataset
+            y : known labels
+            w : model to be tested
+        Returns :
+            mse : the mean squared error
     """
     error = y - tx @ w
 
@@ -185,6 +241,12 @@ def compute_mse(y, tx, w):
 
 def compute_mae(y, tx, w):
     """ Calculate the mean absolute error (MAE) loss.
+        Argument :
+            x : dataset
+            y : known labels
+            w : model to be tested
+        Returns :
+            mae : the mean absolute error
     """
     error = y - tx @ w
 
@@ -192,13 +254,20 @@ def compute_mae(y, tx, w):
 
 def calculate_loss_LR(y, tx, w):
     """ Compute the loss as the negative log likelihood
-        in the case of the logistic regression (LR) """
+        in the case of the logistic regression (LR)
+        Argument :
+            x : dataset
+            y : known labels
+            w : model to be tested
+        Returns :
+            mse : the mean squared error
+    """
 
     # sigma = sigmoid(tx @ w)
     sigma = tx @ w
 
-    loss = np.sum(np.log(1 + np.exp(sigma)) - y.T @ sigma)
-    # or loss = y.T @ np.log(sigma) + (1 - y).T @ np.log(1 - sigma)
+    loss = np.sum(np.log(1 + np.exp(sigma))) - y.T @ sigma
+    # loss = -(y.T @ np.log(sigma) + (1 - y).T @ np.log(1 - sigma))
 
     return np.squeeze(loss)
 
@@ -207,7 +276,14 @@ def calculate_loss_LR(y, tx, w):
 ##############################################
 
 def compute_gradient(y, tx, w):
-    """Compute the gradient."""
+    """ Compute the gradient.
+        Argument :
+            x : dataset
+            y : known labels
+            w : model of the previous iteration
+        Returns :
+            gradient : the new gradient to use for the next iteration
+    """
 
     # Compute the error vector
     # For MSE, ▽L = -1/N*X_T*e
@@ -217,15 +293,28 @@ def compute_gradient(y, tx, w):
 
 def calculate_gradient_LR(y, tx, w):
     """ Compute the gradient of loss
-        in the case of the logistic regression (LR)"""
+        in the case of the logistic regression (LR)
+        Argument :
+            x : dataset
+            y : known labels
+            w : model of the previous iteration
+        Returns :
+            gradient : the new gradient to use for the next iteration
+    """
 
-    return tx.T @ (sigmoid(tx @ w) - y)
+    return (tx.T @ (sigmoid(tx @ w) - y))
 
 ##############################################
 ## Additional helpers
 ##############################################
+
 def sigmoid(t):
-    """ Apply the sigmoid function on t."""
+    """ Apply the sigmoid function on t
+        Argument :
+            t : data
+        Returns :
+            sigmoid(t)
+    """
 
     return 1.0/(1 + np.exp(-t))
 
@@ -259,9 +348,17 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
 ##############################################
 
 def least_squares_GD(y, tx, initial_w, max_iters, gamma):
-
-    """ Linear regression using gradient descent (GD)
-        Returns : (last model w, its corresponding loss)
+    """
+        Linear regression using gradient descent (GD)
+        Argument :
+            tx : dataset
+            y : known labels
+            initial_w : starting/initial model
+            max_iters : the maximal number of iterations the function can do
+            gamma : the learning rate / step size
+        Returns :
+            w : the last Model
+            loss : its corresponding MSE loss
     """
 
     # Threshold for the stopping criterion
@@ -272,7 +369,7 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma):
 
     for n_iter in range(max_iters):
 
-        # compute gradient
+        # Compute gradient
         gradient = compute_gradient(y, tx, w)
 
         # update w by gradient
@@ -280,12 +377,9 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma):
 
         loss = compute_mse(y, tx, w)
 
-        # print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
-        #       bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
-
         # Stopping criterion
         if last_loss is not None and np.abs(loss - last_loss) < threshold:
-            break
+            return w, loss
 
         last_loss = loss
 
@@ -293,7 +387,16 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma):
 
 def least_squares_SGD(y, tx, initial_w, max_iters, batch_size, gamma):
     """ Linear regression using stochastic gradient descent (SGD)
-        Returns : (last w vector, its corresponding loss)
+        Argument :
+            tx : dataset
+            y : known labels
+            initial_w : starting/initial model
+            max_iters : the maximal number of iterations the function can do
+            batch_size : the size of the batch used in batch_iter
+            gamma : the learning rate / step size
+        Returns :
+            w : the last Model
+            loss : its corresponding MSE loss
     """
 
     # Threshold for the stopping criterion
@@ -301,45 +404,39 @@ def least_squares_SGD(y, tx, initial_w, max_iters, batch_size, gamma):
 
     w = initial_w
     last_loss = None
-
+    # See function batch_iter
     num_batches = 100
 
     for n_iter in range(int(max_iters / num_batches)):
-        for i, y_, tx_ in batch_iter(y, tx, batch_size=batch_size, num_batches=num_batches):
-
+        # To increase the efficiency of the function, batch_iter is called with
+        # batch_size = 1, but num_batches = 100. Thus, tx is shuffled only 1 time
+        # per 100 call.
+        for i, y_, tx_ in batch_iter(y, tx, batch_size = batch_size,
+                                     num_batches = num_batches):
+            # For 1 n_iter, the compute_gradient is called num_batches time
             stoch_gradient = compute_gradient(y_, tx_, w)
 
             w = w - gamma * stoch_gradient
 
-            # print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
-            #       bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
-            # Stopping criterion
             loss = compute_mse(y, tx, w)
 
+            # Stopping criterion
             # if last_loss is not None and np.abs(loss - last_loss) < threshold:
             #     print("Converged in : ", n_iter * num_batches + i, " iterations")
             #     return w, loss
 
             last_loss = loss
 
-    # w = initial_w
-    #
-    # for n_iter in range(max_iters):
-    #     for y_,tx_ in batch_iter(y, tx, batch_size=1):
-    #
-    #         stoch_gradient = compute_stoch_gradient(y_, tx_, w)
-    #         loss = compute_mse(y, tx, w)
-    #
-    #         w = w - gamma * stoch_gradient
-    #
-    #         # print("Gradient Descent({bi}/{ti}): loss={l}, w0={w0}, w1={w1}".format(
-    #         #       bi=n_iter, ti=max_iters - 1, l=loss, w0=w[0], w1=w[1]))
-
     return w, loss
 
 def least_squares(y, tx):
     """ Calculate the least squares solution using normal equations
-        Returns : (last w vector, its corresponding loss)
+        Argument :
+            tx : dataset
+            y : known labels
+        Returns :
+            w : the model
+            loss : its corresponding MSE loss
     """
 
     # Closed-form solution of the normal equation
@@ -350,8 +447,13 @@ def least_squares(y, tx):
 
 def ridge_regression(y, tx, lambda_):
     """ Ridge regression using normal equations
-        lambda_ : tunes the importance of the regularizer term
-        Returns : (last w vector, its corresponding loss)
+        Argument :
+            tx : dataset
+            y : known labels
+            lambda_ : tunes the importance of the regularizer term
+        Returns :
+            w : the model
+            loss : its corresponding MSE loss
     """
 
     # ridge regression
@@ -364,73 +466,100 @@ def ridge_regression(y, tx, lambda_):
 
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
     """ Logistic regression using gradient descent
-        Should return : (last w vector, its corresponding loss)
+        Argument :
+            tx : dataset
+            y : known labels
+            initial_w : starting/initial model
+            max_iters : the maximal number of iterations the function can do
+            gamma : the learning rate / step size
+        Returns :
+            w : the last Model
+            loss : its corresponding LR loss
     """
 
     w = initial_w
     # Threshold for stopping criterion
     threshold = 1e-8
-    losses = []
+
+    last_loss = None
 
     # From (-1,1) values to (0,1) values
     y = (y + 1)/2
 
-    # start the logistic regression
-    for iter in range(max_iters):
+    for n_iter in range(max_iters):
 
-        # compute the gradient:
+        # Compute the gradient:
         grad = calculate_gradient_LR(y, tx, w)
 
-        # update w:
+        # Update w:
         w = w - gamma * grad
 
-        # compute the loss:
+        # Compute the loss:
         loss = calculate_loss_LR(y, tx, w)
 
         # # log info
         # if iter % 100 == 0:
         #     print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
-        losses.append(loss)
+        # losses.append(loss)
 
         # Stopping criterion
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
+        if last_loss is not None and np.abs(loss - last_loss) < threshold:
+            print("Converged in : ", n_iter * num_batches + i, " iterations")
+            return w, loss
+
+        last_loss = loss
+
 
     return w, loss
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    """ Regularized logistic regression using gradient descent
-        Returns : (last w vector, its correspondingloss)
+    """ Regularized logistic regression using gradient descent.
+        Additional penality term in the loss function
+        Argument :
+            tx : dataset
+            y : known labels
+            lambda_ : tunes the penalization of the model
+            initial_w : starting/initial model
+            max_iters : the maximal number of iterations the function can do
+            gamma : the learning rate / step size
+        Returns :
+            w : the last Model
+            loss : its corresponding LR loss
     """
 
     w = initial_w
     # Threshold for the stopping criterion
     threshold = 1e-8
-    losses = []
+    last_loss = None
     # From (-1,1) values to (0,1) values
     y = (y + 1)/2
 
-    # start the logistic regression
     for iter in range(max_iters):
 
-        loss = calculate_loss_LR(y, tx, w)
+        # Compute the gradient
         grad = calculate_gradient_LR(y, tx, w)
 
-        loss = loss + lambda_ * np.squeeze( w.T @ w )
         # 2nd order Taylor approx.
         grad = grad + 2 * lambda_ * w
 
-        # update w:
+        # Update w:
         w = w - gamma * grad
 
-        # log info
-        if iter % 100 == 0:
-            print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
-        losses.append(loss)
+        # Calculate the loss of the new model
+        loss = calculate_loss_LR(y, tx, w)
+        loss = loss + lambda_ * np.squeeze( w.T @ w )
+
+        # # log info
+        # if iter % 100 == 0:
+        #     print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
+        # losses.append(loss)
 
         # Stopping criterion
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
+        if last_loss is not None and np.abs(loss - last_loss) < threshold:
+            print("Converged in : ", n_iter * num_batches + i, " iterations")
+            return w, loss
+
+        last_loss = loss
 
     return w, loss
 
@@ -442,12 +571,25 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
 def compute_accuracy(x, y, w, param):
     """ Calculate the accuracy of the prediction
         Xw compared to the known labels y
-        return % accuracy """
+        Argument :
+            x : dataset
+            y : known labels
+            w : model to test
+            param : dictionnary containing the name of the model used
+                    E.g. : param = { "model" : "GD" }
+                           param = { "model" : "SGD" }
+                           param = { "model" : "LS" }
+                           param = { "model" : "ridge" }
+                           param = { "model" : "LR" }
+                           param = { "model" : "REG_LR" }
+        Returns :
+            % accuracy
+    """
 
     if param["model"] != "LR" and param["model"] != "REG_LR":
-        predictions = predict_labels(x.T, w)
+        predictions = predict_labels(w, x)
     else :
-        predictions = predict_labels_LR(x.T, w)
+        predictions = predict_labels_LR(w, x)
 
     # Counts all the correct predictions
     hits = np.sum(predictions == y) / len(y) * 100
@@ -455,14 +597,40 @@ def compute_accuracy(x, y, w, param):
     return hits
 
 def cross_validation(y, x, k_indices, k, param, degree):
-    """return the loss of ridge regression."""
+    """ Cross validation (CV) of the models
+        Argument :
+            y : known labels
+            x : dataset
+            k_indices : vector of indices for Training. See build_k_indices
+            k : indicate in which k-fold the CV is
+            param : dictionnary containing the information of the model used
+                    E.g. :
+                    gammas and lambdas : vectors of parameters to test
+                    max_iters : the number of maximal iterations
+                    batch_size : The size of the batch used for SGD
+                    parameters_GD = { "model": "GD", "param": [gammas, max_iters]}
+                    parameters_SGD = { "model": "SGD","param": [gammas, max_iters, batch_size]}
+                    parameters_LS = { "model": "LS" }
+                    parameters_ridge = { "model": "ridge", "param": lambdas}
+                    parameters_LR = { "model": "LR", "param": [gammas, max_iters]}
+                    parameters_REG_LR = { "model": "REG_LR", "param": [lambdas, max_iters, gamma]}
+            degree : degree until which the x will be augmented. See build_poly
+        Returns :
+            loss_tr : loss of training set
+            loss_te : loss of testing set
+            optimal_w : the model retained
+            accuracy : the accuracy of the model
+    """
 
-    # get k'th subgroup in test, others in train:
+    # Get k'th subgroup in test, others in train:
     x_te = x[k_indices[k]]
     y_te = y[k_indices[k]]
     x_tr = np.delete(x, k_indices[k], 0)
     y_tr = np.delete(y, k_indices[k], 0)
 
+    # By convention :
+    # degree = 0 => x_tr_p = x_tr (no bias added)
+    # degree = 1 => x_tr_p = [1 x_tr] (the first column is filled with 1, to add a bias)
     if degree != 0:
         # form data with polynomial degree:
         x_tr_p = build_poly(x_tr, degree)
@@ -489,14 +657,12 @@ def cross_validation(y, x, k_indices, k, param, degree):
 
     elif param["model"] == "ridge":
         lambda_ = param["param"]
-        # ridge regression:
         optimal_w, mse = ridge_regression(y_tr, x_tr_p, lambda_)
 
     elif param["model"] == "LR":
         initial_w = param["initial_w"]
         max_iters = param["param"][1]
         gamma = param["param"][0]
-        # logistic regression :
         optimal_w, mse = logistic_regression(y_tr, x_tr_p, initial_w, max_iters, gamma)
 
     elif param["model"] == "REG_LR":
@@ -516,7 +682,31 @@ def cross_validation(y, x, k_indices, k, param, degree):
     return loss_tr, loss_te, optimal_w, accuracy
 
 def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
+    """ Optimize the best degree and/or the best parameter for each model
+    Argument :
+        x : dataset
+        y : known labels
+        degrees : List of degrees to test.
+                  For each degree, x will be augmented until degree.
+                  See build_poly
+        k_fold : The number of k_fold to perfom in the cross_validation.
+                 The RMSEs & the accuracies are average over the k_fold
+        model : dictionnary containing the information of the model used
+                E.g. :
+                gammas and lambdas : vectors of parameters to test
+                max_iters : the number of maximal iterations
+                batch_size : The size of the batch used for SGD
 
+                parameters_GD = { "model": "GD", "param": [gammas, max_iters]}
+                parameters_SGD = { "model": "SGD","param": [gammas, max_iters, batch_size]}
+                parameters_LS = { "model": "LS" }
+                parameters_ridge = { "model": "ridge", "param": lambdas}
+                parameters_LR = { "model": "LR", "param": [gammas, max_iters]}
+                parameters_REG_LR = { "model": "REG_LR", "param": [lambdas, max_iters, gamma]}
+    Returns :
+        rmses_list : list of the RMSEs per all couple (degree, param)
+        accuracy_list : list of the accuracies per all couple (degree, param)
+    """
     # Split data in k fold
     k_indices = build_k_indices(y, k_fold, seed)
 
@@ -532,7 +722,6 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
         accuracy_list = np.empty([degrees.size, list_param.size])
 
     else:
-
         rmses_list = np.empty(degrees.size)
         accuracy_list = np.empty(degrees.size)
 
@@ -554,9 +743,9 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
             else :
                 model["initial_w"] = np.zeros(int(x.shape[1]))
 
-        #####
-        # Not LS
-        #####
+        ####################################
+        # Not LS : optimize lambda or gamma
+        ####################################
 
         if model["model"] != 'LS':
 
@@ -578,12 +767,11 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
                 rmses_list[i,j] = np.mean(rmse_te_tmp)
                 accuracy_list[i,j] = np.mean(accuracy_tmp)
 
-        #####
-        # LS
-        #####
+        ######################################
+        # LS : No other parameter to optimize
+        ######################################
 
         else :
-
             rmse_te_tmp = np.empty(k_fold)
             accuracy_tmp = np.empty(k_fold)
 
@@ -600,6 +788,7 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
     rmses_list = np.squeeze(rmses_list)
     accuracy_list = np.squeeze(accuracy_list)
 
+    # Print the results corresponding to the smallest RMSE
     if model["model"] == 'LS':
         idx_best_degree = np.squeeze(np.argwhere(rmses_list == np.min(rmses_list)))
         print("The best degree is", degrees[idx_best_degree],
