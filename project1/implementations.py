@@ -3,7 +3,7 @@ import numpy as np
 from proj1_helpers import *
 
 ##############################################
-## Data- preprocessing
+## Data - preprocessing
 ##############################################
 
 def build_k_indices(y, k_fold, seed):
@@ -20,7 +20,7 @@ def build_poly(x, degree):
     """ Polynomial basis functions for input data x, for j=0 up to j=degree.
         This function should return the matrix formed by applying the polynomial
         basis to the input data.
-        By convention, degree = 0 returns x_augmented = x
+        By convention, degree = 0 returns x
         Arguments :
             x : dataset
             degree : the degree until which the function will augment the x
@@ -48,10 +48,11 @@ def build_poly(x, degree):
             start = d * features + 1
             stop = (d + 1) * features + 1
             x_augmented[ : , start : stop] = x**(d + 1)
-    elif degree == 0:
-        x_augmented = x
 
-    return x_augmented
+        return x_augmented
+
+    elif degree == 0:
+        return x
 
 def categorizing(x):
     """ The feature 23 (PRI_JET_NUM) is a categorical variables that contains
@@ -63,23 +64,27 @@ def categorizing(x):
                  Contains TRUE if the x[:, 22] = 0
                  x[categories[0]] returns all the x that have 0 as PRI_JET_NUM
     """
-    categories = {0: x[:, 22] == 0, 1: x[:, 22] == 1, 2: x[:, 22] == 2, 3: x[:, 22] == 3}
+    categories = {i: x[:, 22] == i for i in range(4)}
+
     return categories
 
-def standardize(x):
+def standardize(x, mean = None, std = None):
     """ Standardize the original data set
         Argument :
             x : dataset
         Returns :
             standardized data set
-            mean
-            standard deviation
+            mean along the columns
+            standard deviation along the columns
      """
-    mean_x = np.mean(x, axis = 0)
-    x = x - mean_x
-    std_x = np.std(x, axis = 0)
-    x = x / std_x
-    return x, mean_x, std_x
+    if mean is None or std is None:
+        mean_x = np.mean(x, axis = 0)
+        x = x - mean_x
+        std_x = np.std(x, axis = 0)
+        x = x / std_x
+        return x, mean_x, std_x
+    else:
+        return (x-mean)/std, mean, std
 
 def split_data(x, y, ratio, seed=1):
     """ Split the dataset based on the split ratio.
@@ -125,11 +130,8 @@ def remove_categorical_feature(x) :
             tX : dataset without the Pri_jet_num feature
     """
 
-    tX = np.copy(x)
     # remove the categorical feature : Pri_jet_num
-    tX = np.delete(tX, 22, 1)
-
-    return tX
+    return np.delete(x, 22, axis=1)
 
 def clear_variance_0(x):
 
@@ -137,11 +139,10 @@ def clear_variance_0(x):
         Argument :
             x : dataset
         Returns :
-            tX : dataset without the 0-variance features
+            x : dataset without the 0-variance features
     """
-    tX = np.copy(x)
 
-    return tX[:, np.squeeze(np.argwhere(np.std(tX, axis = 0) > 1e-5)) ]
+    return np.delete(x, np.argwhere(np.std(x, axis = 0) < 1e-5), axis=1)
 
 def remove_aberrant_values(x):
     ''' The undefined variables are set to -999.0.
@@ -153,23 +154,18 @@ def remove_aberrant_values(x):
             tX : dataset with the -999.0 replaced by the mean of the feature
     '''
 
-    tX = np.copy(x)
-    nb_features = tX.shape[1]
-    means = np.empty(nb_features)
+    # Matrix of size NxD containing true where x = -999
+    aberrant_idxs = x == -999
+    # Replace -999 by nan
+    x_nan = np.where(aberrant_idxs, np.nan, x)
+    # Mean without nan of each features
+    features_mean = np.nanmean(x_nan, axis=0)
+    # Matrix of size NxD. Each row is a copy of features_mean vector
+    features_mean_mat = np.repeat(features_mean[np.newaxis,:], x.shape[0], axis=0)
+    # Replace the aberrant idx by the corresponding mean of the feature
+    return np.where(aberrant_idxs, features_mean_mat, x)
 
-    # Iterate through each feature of x (D dimensions)
-    for i in range(nb_features):
-
-        # Calculate the mean without the abberant values
-        feature_mean = tX[ tX[:,i] != -999.0 , i].mean()
-        # Calculate the number of abberant values
-        nb_abberant_values = np.sum(tX[:,i] == -999.0)
-        # Replace the abberant values by the mean of the feature
-        tX[ tX[:,i] == -999.0 , i] = feature_mean * np.ones(nb_abberant_values)
-
-    return tX
-
-def rescale_outliers(x):
+def rescale_outliers(tX, lim_min=None, lim_max=None):
     """ Replaces the outliers that are outside the interval :
         mean(x:d) +/- 3 * std(x:d) by the bound values of the interval
         Argument :
@@ -178,49 +174,60 @@ def rescale_outliers(x):
             tX : dataset with the points outside mean +/- 3*std replaced
             at the extreme values of the interval
     """
+    if lim_min is None or lim_max is None:
+        # Calculate the means & the variances of all the features
+        means = np.mean(tX, axis = 0)
+        variances = np.std(tX, axis = 0)
+        # Calculate the minimal and the maximal limit of the confidence interval
+        lim_min = means - 3 * variances
+        lim_max = means + 3 * variances
 
-    tX = np.copy(x)
-    # Calculate the means & the variances of all the features
-    means = np.mean(tX, axis = 0)
-    variances = np.std(tX, axis = 0)
-    # Calculate the minimal and the maximal limit of the confidence interval
-    lim_min = means - 3 * variances
-    lim_max = means + 3 * variances
+    # Test along each column :
+    # If tX[:,d] > lim_max[d] => tX[:,d] = lim_max[d]
+    # If tX[:,d] < lim_min[d] => tX[:,d] = lim_min[d]
+    return np.clip(tX, lim_min, lim_max), lim_min, lim_max
 
-    # Iterate through each feature of x (D dimensions)
-    for d in range(tX.shape[1]):
-        # If some entries in the feature d are smaller than lim_min,
-        # They are replaced by the lim_min
-        # Otherwise, they stay the same
-        tX[:, d] = np.where(tX[:, d] < lim_min[d], lim_min[d], tX[:, d])
-        # Same for lim_max, if the values exceed the maximal limit
-        tX[:, d] = np.where(tX[:, d] > lim_max[d], lim_max[d], tX[:, d])
+def get_exceeding_cols(mat, thresh):
+    """ Argument :
+        mat : matrix
+        thresh : the highest normalized correlation tolerated.
+        Returns :
+            the sorted indices where the maximum of the absolute value of each
+            column of the upper diagonal matrix is greater than the threshold
+    """
 
-    return tX
+    # Search the max of the absolute value in the triangular upper matrix
+    # k = 1 => the triangular matrix starts 1 diagonal above the main one
+    max_in_cols = np.max(np.abs(np.triu(mat, k=1)), axis=0)
+    # Get the sorted indices from the max column values
+    # (Sorted from the biggest one to the smallest one)
+    idxs_sort = np.argsort(max_in_cols)[::-1]
+    # Get the indices where the max column values exceed the threshold
+    idxs_exceeding = np.argwhere(max_in_cols[idxs_sort] > thresh)
+    return idxs_sort[idxs_exceeding]
 
-def remove_correlation(x, par):
-    """ Removes the highly correlated features,
-        i.e. if the correlation between column i & j >= param
+def remove_correlation(x, corr_lim):
+    """ Removes the highly (anti-)correlated features, i.e. if the absolute value
+        of the correlation between column i & j >= param, based on Pearson
+        product-moment correlation coefficients
         Argument :
             x : dataset
-            par : the highest correlation tolerated.
+            corr_lim : the highest normalized correlation tolerated.
         Returns :
             tX : dataset without the highly correlated features
     """
+    t_x_uncorr = x
 
-    tX = np.copy(x)
-    nb_features = tX.shape[1]
-    nb_rows = tX.shape[0]
-    correlation = np.corrcoef(x, y=None, rowvar=False)
-
-    # Go through each feature of x (D dimensions)
-    for i in range(nb_features):
-        # Find the correlating features
-        for j in range(i):
-            if correlation[i,j] >= par:
-                # Delete the highly correlating feature
-                tX = np.delete(tX, j, 1)
-    return tX
+    while True:
+        # Each row corresponds to a variable, so transpose to have
+        # each variable = each feature
+        corr = np.corrcoef(t_x_uncorr.T)
+        exceed_idxs = get_exceeding_cols(corr, corr_lim)
+        # Continue until no exceeding index
+        if not exceed_idxs.size:
+            break
+        t_x_uncorr = np.delete(t_x_uncorr, exceed_idxs[0], axis=1)
+    return t_x_uncorr
 
 ##############################################
 ## Costs
@@ -254,7 +261,8 @@ def compute_mae(y, tx, w):
 
 def calculate_loss_LR(y, tx, w):
     """ Compute the loss as the negative log likelihood
-        in the case of the logistic regression (LR)
+        in the case of the logistic regression (LR).
+        The loss was normalized by the length of y.
         Argument :
             x : dataset
             y : known labels
@@ -266,7 +274,7 @@ def calculate_loss_LR(y, tx, w):
     # sigma = sigmoid(tx @ w)
     sigma = tx @ w
 
-    loss = np.sum(np.log(1 + np.exp(sigma))) - y.T @ sigma
+    loss = (np.sum(np.log(1 + np.exp(sigma))) - y.T @ sigma)/len(y)
     # loss = -(y.T @ np.log(sigma) + (1 - y).T @ np.log(1 - sigma))
 
     return np.squeeze(loss)
@@ -468,7 +476,7 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
     """ Logistic regression using gradient descent
         Argument :
             tx : dataset
-            y : known labels
+            y : known labels. Should be either -1 or 1
             initial_w : starting/initial model
             max_iters : the maximal number of iterations the function can do
             gamma : the learning rate / step size
@@ -483,6 +491,8 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
 
     last_loss = None
 
+    if not np.unique(y) in np.r_[-1,1]:
+        raise Exception("The labels should be either -1 or 1.")
     # From (-1,1) values to (0,1) values
     y = (y + 1)/2
 
@@ -517,7 +527,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         Additional penality term in the loss function
         Argument :
             tx : dataset
-            y : known labels
+            y : known labels. Should be either -1 or 1
             lambda_ : tunes the penalization of the model
             initial_w : starting/initial model
             max_iters : the maximal number of iterations the function can do
@@ -531,10 +541,13 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     # Threshold for the stopping criterion
     threshold = 1e-8
     last_loss = None
+
+    if not np.unique(y) in np.r_[-1,1]:
+        raise Exception("The labels should be either -1 or 1.")
     # From (-1,1) values to (0,1) values
     y = (y + 1)/2
 
-    for iter in range(max_iters):
+    for n_iter in range(max_iters):
 
         # Compute the gradient
         grad = calculate_gradient_LR(y, tx, w)
@@ -556,7 +569,7 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
 
         # Stopping criterion
         if last_loss is not None and np.abs(loss - last_loss) < threshold:
-            print("Converged in : ", n_iter * num_batches + i, " iterations")
+            print("Converged in : ", n_iter , " iterations")
             return w, loss
 
         last_loss = loss
@@ -663,7 +676,7 @@ def cross_validation(y, x, k_indices, k, param, degree):
         initial_w = param["initial_w"]
         max_iters = param["param"][1]
         gamma = param["param"][0]
-        optimal_w, mse = logistic_regression(y_tr, x_tr_p, initial_w, max_iters, gamma)
+        optimal_w, loss = logistic_regression(y_tr, x_tr_p, initial_w, max_iters, gamma)
 
     elif param["model"] == "REG_LR":
         initial_w = param["initial_w"]
@@ -671,13 +684,21 @@ def cross_validation(y, x, k_indices, k, param, degree):
         gamma = param["param"][2]
         lambda_ = param["param"][0]
         # regularized logistic regression :
-        optimal_w, mse = reg_logistic_regression(y_tr, x_tr_p, lambda_, initial_w, max_iters, gamma)
+        optimal_w, loss = reg_logistic_regression(y_tr, x_tr_p, lambda_, initial_w, max_iters, gamma)
 
 
     accuracy = compute_accuracy(x_te_p, y_te, optimal_w, param)
-    # calculate the loss for train and test data:
-    loss_tr = np.sqrt(2 * mse)
-    loss_te = np.sqrt(2 * compute_mse(y_te, x_te_p, optimal_w))
+
+    # Calculate the loss for train and test data
+    # For all the models except LR & LOG_LR, we compute the RMSE
+    if param["model"] != 'LR' and param["model"] != 'REG_LR':
+        loss_tr = np.sqrt(2 * mse)
+        loss_te = np.sqrt(2 * compute_mse(y_te, x_te_p, optimal_w))
+    else:
+        # The loss corresponds to the negative log likelihood
+        loss_tr = loss
+        # The loss is computed with y of value [0,1], not [-1,1]
+        loss_te = calculate_loss_LR((y_te + 1)/2, x_te_p, optimal_w)
 
     return loss_tr, loss_te, optimal_w, accuracy
 
@@ -704,7 +725,9 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
                 parameters_LR = { "model": "LR", "param": [gammas, max_iters]}
                 parameters_REG_LR = { "model": "REG_LR", "param": [lambdas, max_iters, gamma]}
     Returns :
-        rmses_list : list of the RMSEs per all couple (degree, param)
+        losses_list : list of the losses per all couple (degree, param).
+                      All the losses are RMSE, except for LR & REG_LR where
+                      they are normalized negative log likelihood.
         accuracy_list : list of the accuracies per all couple (degree, param)
     """
     # Split data in k fold
@@ -718,11 +741,11 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
         else :
             list_param = model["param"]
         # Store all the RMSEs
-        rmses_list = np.empty([degrees.size, list_param.size])
+        losses_list = np.empty([degrees.size, list_param.size])
         accuracy_list = np.empty([degrees.size, list_param.size])
 
     else:
-        rmses_list = np.empty(degrees.size)
+        losses_list = np.empty(degrees.size)
         accuracy_list = np.empty(degrees.size)
 
     # Vary degree
@@ -751,7 +774,7 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
 
             for j, p in enumerate(list_param):
 
-                rmse_te_tmp = np.empty(k_fold)
+                loss_te_tmp = np.empty(k_fold)
                 accuracy_tmp = np.empty(k_fold)
 
                 if model["model"] != 'ridge':
@@ -760,11 +783,11 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
                     model["param"] = p
 
                 for k in range(k_fold):
-                    _, rmse_te, _, accuracy = cross_validation(y, x, k_indices, k, model, degree)
-                    rmse_te_tmp[k] = rmse_te
+                    _, loss_te, _, accuracy = cross_validation(y, x, k_indices, k, model, degree)
+                    loss_te_tmp[k] = loss_te
                     accuracy_tmp[k] = accuracy
 
-                rmses_list[i,j] = np.mean(rmse_te_tmp)
+                losses_list[i,j] = np.mean(loss_te_tmp)
                 accuracy_list[i,j] = np.mean(accuracy_tmp)
 
         ######################################
@@ -772,34 +795,41 @@ def best_degree_selection(x, y, degrees, k_fold, model, seed = 1):
         ######################################
 
         else :
-            rmse_te_tmp = np.empty(k_fold)
+            loss_te_tmp = np.empty(k_fold)
             accuracy_tmp = np.empty(k_fold)
 
             for k in range(k_fold):
-                    _, rmse_te, _, accuracy = cross_validation(y, x, k_indices, k, model, degree)
-                    rmse_te_tmp[k] = rmse_te
+                    _, loss_te, _, accuracy = cross_validation(y, x, k_indices, k, model, degree)
+                    loss_te_tmp[k] = loss_te
                     accuracy_tmp[k] = accuracy
 
-            rmses_list[i] = np.mean(rmse_te_tmp)
+            losses_list[i] = np.mean(loss_te_tmp)
             accuracy_list[i] = np.mean(accuracy_tmp)
 
     print("The method used is : ", model["model"])
 
-    rmses_list = np.squeeze(rmses_list)
+    losses_list = np.squeeze(losses_list)
     accuracy_list = np.squeeze(accuracy_list)
 
     # Print the results corresponding to the smallest RMSE
     if model["model"] == 'LS':
-        idx_best_degree = np.squeeze(np.argwhere(rmses_list == np.min(rmses_list)))
+        idx_best_degree = np.squeeze(np.argwhere(losses_list == np.min(losses_list)))
         print("The best degree is", degrees[idx_best_degree],
-              " with RMSE = ", rmses_list[idx_best_degree],
+              " with RMSE = ", losses_list[idx_best_degree],
               "and accuracy = ", accuracy_list[idx_best_degree])
-    else:
-        idx_best_degree = np.squeeze(np.argwhere(rmses_list == np.min(rmses_list)))
+
+    elif model["model"] != 'LR' and model["model"] != 'REG_LR':
+        idx_best_degree = np.squeeze(np.argwhere(losses_list == np.min(losses_list)))
         print("The best degree is", degrees[idx_best_degree[0]],
               " best parameter is", list_param[idx_best_degree[1]],
-              " with RMSE = ", rmses_list[idx_best_degree[0],idx_best_degree[1]],
+              " with RMSE = ", losses_list[idx_best_degree[0],idx_best_degree[1]],
+              "and accuracy = ", accuracy_list[idx_best_degree[0],idx_best_degree[1]])
+    else:
+        idx_best_degree = np.squeeze(np.argwhere(losses_list == np.min(losses_list)))
+        print("The best degree is", degrees[idx_best_degree[0]],
+              " best parameter is", list_param[idx_best_degree[1]],
+              " with loss NLL = ", losses_list[idx_best_degree[0],idx_best_degree[1]],
               "and accuracy = ", accuracy_list[idx_best_degree[0],idx_best_degree[1]])
 
 
-    return rmses_list, accuracy_list
+    return losses_list, accuracy_list

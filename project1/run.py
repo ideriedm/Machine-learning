@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """some helper functions."""
 import numpy as np
-from implementations import *
 from proj1_helpers import *
+from implementations import *
 
 DATA_TRAIN_PATH = '../data/train.csv'
 y_pre, tX_pre, ids = load_csv_data(DATA_TRAIN_PATH)
@@ -36,16 +36,16 @@ for i in range(len(jet)):
     tX_post = remove_categorical_feature(tX_post)
     tX_post = clear_variance_0(tX_post)
     tX_post = remove_aberrant_values(tX_post)
-    tX_post = rescale_outliers(tX_post)
-    tX_post, _ , _ = standardize(tX_post)
+    tX_post, lim_min, lim_max = rescale_outliers(tX_post)
+    tX_post, mean , std = standardize(tX_post)
 
     # Preprocessing test
     tX_test_post = tX_test[jet_test[i]]
     tX_test_post = remove_categorical_feature(tX_test_post)
     tX_test_post = clear_variance_0(tX_test_post)
     tX_test_post = remove_aberrant_values(tX_test_post)
-    tX_test_post = rescale_outliers(tX_test_post)
-    tX_test_post, _ , _ = standardize(tX_test_post)
+    tX_test_post, _, _ = rescale_outliers(tX_test_post, lim_min, lim_max)
+    tX_test_post, _, _ = standardize(tX_test_post, mean, std)
 
     y_jet = y_pre[jet[i]]
 

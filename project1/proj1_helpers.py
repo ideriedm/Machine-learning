@@ -2,6 +2,7 @@
 """some helper functions for project 1."""
 import csv
 import numpy as np
+from implementations import sigmoid
 
 def de_standardize(x, mean_x, std_x):
     """Reverse the procedure of standardization."""
@@ -39,7 +40,7 @@ def predict_labels(weights, data):
 def predict_labels_LR(weights, data):
     """Generates class predictions given weights, and a test data matrix
        For the case of logistic regression or regularized logistic regression. """
-    y_pred = np.dot(data, weights)
+    y_pred = sigmoid(np.dot(data, weights))
     y_pred[np.where(y_pred <= 0.5)] = -1
     y_pred[np.where(y_pred > 0.5)] = 1
 
