@@ -9,19 +9,18 @@ The goal of this project was to rediscover the Higgs boson starting from the act
 ##  Code files
 
 ### Implementations.py
-Contains all the functions used in Run.py, including the six basis method implementations:
+Contains all the functions used in Run.py and the six basis method implementations:
 + least_squares_GD: Linear regression using gradient descent, step-size gamma. 
 + least_squares_SGD: Linear regression using stochastic gradient descent, step-size gamma.
 + least_squares: Least squares regression using normal equations.
-+ ridge_regression: Ridge regression using normal equations. Lambda is the tradeoff parameter, it plays a role in the complexity penalization. 
-+ logistic_regression: Logistic regression using gradient descent.
-+ reg_logistic_regression: Regularized logistic regression using gradient descent. As in ridge regression, lambda is the tradeoff parameter. 
-Note that the logisitc regression functions asks label argument y to  take values 1 and -1.
++ ridge_regression: Ridge regression using normal equations. Lambda is the tradeoff parameter of the L2-regularization term.
++ logistic_regression: Logistic regression using gradient descent, step-size gamma. The labels should take the values -1 or 1.
++ reg_logistic_regression: Regularized logistic regression using gradient descent, step size gamma. Lambda is a tradeoff parameter of the penalty term. The labels should take the values -1 or 1. 
 
 
 ### Run.py
 
-The backbone of the project is contained in the run.py file. All the results contained in [sample_submission.csv]() can be found using this script. It contains data loading, preprocessing,  model fitting for ridge regression method, parameters and hyperparameters optimization steps. Preprocessing consists in removing the _PRI-jet-num_ categorical feature, setting the undefined variables -999.0 at the mean of the feature and standardizing the data. Feature augmentation and hyperparameter optimization were performed through grid search coupled with a 5-fold cross-validation. For least squares and ridge regression who gave the best preliminary accuracies, Data was split according to _PRI-jet-num_ feature, leading to four different sets. Our best results were found using ridge regression method on splitted data for degrees of respectively [7, 9, 9, 9] and lambdas of [1e-2, 1e-3, 1e-3, 1e-3]. Best accuracies were of [0.842, 0.807, 0.834, 0.836].
+The run.py file contains all the steps to go from training the model on train.csv to predict the labels of the test.csv data. After loading the data from train.csv and test.csv. Preprocessing consisted in removing the _PRI-jet-num_ categorical feature, removing the features with zero variance, setting the undefined variables -999.0 at the mean of the feature, replacing the data outside the three sigma rule by the values of the interval limits for each feature and standardizing the data. Note that for the test data, the rescaling of the outliers was performed with the limits found in the train data and the standardisation was also done with the mean and standard deviation of the train data. During optimization, we obtained a model of Ridge regression with degrees = [7,9,9,9] and lambdas = [1e-2,1e-3,1e-3,1-3] for each jet category. The accuracies obtained were [0.842, 0.807, 0.834, 0.836] for each jet category and 0.828 overall. Finally, our predictions from the test data was tested with categorical accuracy of 0.829 and F1-score of 0.737 on AIcrowd.
 
 
 ### Data folder
