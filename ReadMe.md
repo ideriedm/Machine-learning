@@ -38,9 +38,9 @@ All models were trained and tested with the training set splitted in 80-20 propo
 
 
 ## Run the code
-Here we explain to you how to export our results to the AIcrowd competition.
+How to export our results to the AIcrowd competition:
 + Download and extract the .zip folder of the project
-+ Go to the script folder, open it in the terminal
++ Go to the script folder, open it in the terminal ($ cd path_to_script_folder)
 + $ python3 run.py
-+ The current results can be found in the sample_submission.csv file
++ The current results can be found in the ../data/sample_submission.csv file
 + Upload it on the [AIcrowd EPFL Machine Learning Higgs challenge](https://www.aicrowd.com/challenges/epfl-machine-learning-higgs) page.
