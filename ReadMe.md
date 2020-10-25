@@ -30,7 +30,6 @@ The run.py file contains all the steps to go from training the model on train.cs
 
 ### Models optimization
 All models were trained and tested with the training set splitted in 80-20 proportions. Hyperoptimization and feature augmentation were performed by grid search coupled with a 5-fold cross-validation. Once models were all compared and the best (Ridge regression) was chosen, it was optimized on the splitted data according to the categorical feature _PRI-jet-num_.
-The details of the optimization of each models are described in the jupyter notebook project1.ipynb.
 
 ## Data folder
 
