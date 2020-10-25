@@ -316,16 +316,6 @@ def calculate_gradient_LR(y, tx, w):
 ## Additional helpers
 ##############################################
 
-def sigmoid(t):
-    """ Apply the sigmoid function on t
-        Argument :
-            t : data
-        Returns :
-            sigmoid(t)
-    """
-
-    return 1.0/(1 + np.exp(-t))
-
 def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     """
     Generate a minibatch iterator for a dataset.
@@ -394,7 +384,9 @@ def least_squares_GD(y, tx, initial_w, max_iters, gamma):
     return w, loss
 
 def least_squares_SGD(y, tx, initial_w, max_iters, batch_size, gamma):
-    """ Linear regression using stochastic gradient descent (SGD)
+    """ Linear regression using stochastic gradient descent (SGD).
+        Note that we used a batch_size = 1 and a num_batches = 100 to optimize
+        the method. The max_iters should be a multiple of 100.
         Argument :
             tx : dataset
             y : known labels
@@ -414,6 +406,9 @@ def least_squares_SGD(y, tx, initial_w, max_iters, batch_size, gamma):
     last_loss = None
     # See function batch_iter
     num_batches = 100
+
+    if max_iters%num_batches != 0:
+        raise Exception("The max_iters should be a multiple of 100.")
 
     for n_iter in range(int(max_iters / num_batches)):
         # To increase the efficiency of the function, batch_iter is called with

@@ -2,7 +2,7 @@
 """some helper functions for project 1."""
 import csv
 import numpy as np
-from implementations import sigmoid
+
 
 def de_standardize(x, mean_x, std_x):
     """Reverse the procedure of standardization."""
@@ -36,6 +36,16 @@ def predict_labels(weights, data):
     y_pred[np.where(y_pred > 0)] = 1
 
     return y_pred
+
+def sigmoid(t):
+    """ Apply the sigmoid function on t
+        Argument :
+            t : data
+        Returns :
+            sigmoid(t)
+    """
+
+    return 1.0/(1 + np.exp(-t))
 
 def predict_labels_LR(weights, data):
     """Generates class predictions given weights, and a test data matrix
