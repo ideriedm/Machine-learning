@@ -23,7 +23,7 @@ All the methods return the model (the weights) and its corresponding loss. For t
 Contains an example of the optimization process for the Ridge regression, without splitting according to jet category. Similar codes were run for all the models in the jupyter notebook project1.ipynb. The optimization process is described in the Models optimization paragraph.
 
 
-### Run.py
+### run.py
 
 The run.py file contains all the steps to go from training the model on train.csv to predicting the labels of the test.csv data. After loading the data from train.csv and test.csv, pre-processing consisted in removing the _PRI-jet-num_ categorical feature, removing the features with zero variance, setting the undefined variables -999.0 at the mean of the feature, replacing the data outside the three sigma rule by the values of the interval limits for each feature and standardizing the data. Note that for the test data, the rescaling of the outliers was performed with the limits found in the train data and the standardisation was also done with the mean and standard deviation of the train data. During optimization, we obtained a model of Ridge regression with degrees = [7, 9, 9, 9] and lambdas = [1e-2, 1e-3, 1e-3, 1e-3] for each jet category. The accuracies obtained were [0.842, 0.807, 0.834, 0.836] for each jet category and 0.828 overall. Finally, our predictions from the test data was tested with categorical accuracy of 0.829 and F1-score of 0.737 on AIcrowd.
 
