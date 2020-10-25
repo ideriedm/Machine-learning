@@ -16,6 +16,7 @@ Contains all the functions used in the project and the six basis model implement
 + ridge_regression: Ridge regression using normal equations. Lambda is the trade-off parameter of the L2-regularization term.
 + logistic_regression: Logistic regression using gradient descent, step-size gamma. The labels should take the values -1 or 1.
 + reg_logistic_regression: Regularized logistic regression using gradient descent, step size gamma. Lambda is a trade-off parameter of the penalty term. The labels should take the values -1 or 1.
+
 All the methods return the model (the weights) and its corresponding loss. For the first four models, the loss corresponds to the mean-squared error. For the two logistic regressions, it is a negative logarithmic likelihood.  
 
 ### example.py
