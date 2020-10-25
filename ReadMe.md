@@ -33,8 +33,9 @@ All models were trained and tested with the training set splitted in 80-20 propo
 
 ## Data folder
 
-+ **Train and Test.csv:** Labels of the sets are automatically attributed by the load_csv_data function. Background label (= noise) is given a value of -1 and Signal label a value of 1. Train.csv was used to find the best models. It was splitted in a training and a testing set with 80-20 proportions. Once the best model was found thanks to the grid search and the cross-validation explained above, its final accuracy was calculated by training the model on the whole train.csv and testing it on the whole test.csv set.
-+ **Sample_submission.csv:** Contains the results obtained by running Run.py on our sets of data, train and test.csv
++ In the code, the data will be loaded as ../data/train.csv and ../data/test.csv. The submission sample will be placed in ../data/sample_submission.csv
++ **train.csv and test.csv:** Labels of the sets are automatically attributed by the load_csv_data function. Background label (= noise) is given a value of -1 and Signal label a value of 1. Train.csv was used to find the best models. It was splitted in a training and a testing set with 80-20 proportions. Once the best model was found thanks to the grid search and the cross-validation explained above, its final accuracy was calculated by training the model on the whole train.csv and testing it on the whole test.csv set.
++ **sample_submission.csv:** Contains the results obtained by running Run.py on our sets of data, train and test.csv
 
 
 ## Run the code
