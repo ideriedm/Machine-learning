@@ -26,7 +26,7 @@ The backbone of the project is contained in the run.py file. All the results con
 
 ### Data folder
 
-+ **Train and Test.csv:**  Train.csv was used to find the best models. It was splitted in a training and a testing set with 80-20 proportions. Once the best model was found, its final accuracy was calculated by training the model on the whole train.csv and tested on the whole test.csv set.
++ **Train and Test.csv:** Labels of the sets are automatically attributed by the load_csv_data function. Background label (=noise) is given -1 value and Signal value 1. Train.csv was used to find the best models. It was splitted in a training and a testing set with 80-20 proportions. Once the best model was found, its final accuracy was calculated by training the model on the whole train.csv and tested on the whole test.csv set.
 + **Sample_submission.csv:** Contains the results obtained by running Run.py on our sets of data, train and test.csv
 
 
