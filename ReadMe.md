@@ -13,9 +13,10 @@ Contains all the functions used in Run.py, including the six basis method implem
 + least_squares_GD: Linear regression using gradient descent, step-size gamma. 
 + least_squares_SGD: Linear regression using stochastic gradient descent, step-size gamma.
 + least_squares: Least squares regression using normal equations.
-+ ridge_regression: Ridge regression using normal equations.
-+ logistic_regression: Logistic regression using gradient descent or stochastic gradient descent.
-+ reg_logistic_regression: Regularized logistic regression using gradient descent or stochastic gradient descent.
++ ridge_regression: Ridge regression using normal equations. Lambda is the tradeoff parameter, it plays a role in the complexity penalization. 
++ logistic_regression: Logistic regression using gradient descent.
++ reg_logistic_regression: Regularized logistic regression using gradient descent. As in ridge regression, lambda is the tradeoff parameter. 
+Note that the logisitc regression functions asks label argument y to  take values 1 and -1.
 
 
 ### Run.py
@@ -25,7 +26,7 @@ The backbone of the project is contained in the run.py file. All the results con
 
 ### Data folder
 
-+ **Train and Test.csv:** Both data sets were used to train and test each different model, before evaluationg its accuracy performance. These need to be opened in order for the run.py file to compute the results. 
++ **Train and Test.csv:**  Train.csv was used to find the best models. It was splitted in a training and a testing set with 80-20 proportions. Once the best model was found, its final accuracy was calculated by training the model on the whole train.csv and tested on the whole test.csv set.
 + **Sample_submission.csv:** Contains the results obtained by running Run.py on our sets of data, train and test.csv
 
 
